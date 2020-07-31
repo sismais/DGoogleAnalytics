@@ -12,8 +12,13 @@ type
     function GooglePropertyID(Value: String): iControllerGoogleAnalytics; overload;
     function ClienteID: String; overload;
     function ClienteID(Value: String): iControllerGoogleAnalytics; overload;
+
     function UserID: String; overload;
     function UserID(Value: String): iControllerGoogleAnalytics; overload;
+
+    /// <summary> Tempo Limite da Sessão (em minutos, tal como parametrizado no Google Analytics, padrão: 30 minutos </summary>
+    function SessionTimeOutMinutes: Integer; overload;
+    function SessionTimeOutMinutes(Value : Integer):  iControllerGoogleAnalytics; overload;
 
     function SystemPlatform: String;
     function ScreenResolution: String;

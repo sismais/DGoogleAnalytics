@@ -4,7 +4,8 @@ interface
 
 uses
   Google.Controller.Analytics.Interfaces,
-  Google.Model.Analytics.Interfaces;
+  Google.Model.Analytics.Interfaces,
+  System.DateUtils;
 
 type
   TControllerGoogleAnalytics = Class(TInterfacedObject, iControllerGoogleAnalytics)
@@ -14,6 +15,7 @@ type
     FGooglePropertyID: String;
     FClienteID: String;
     FUserID: String;
+    FSessionTimeOutMinutes : Integer;
 
     FSystemPlatform: String;
     FScreenResolution: String;
@@ -22,14 +24,21 @@ type
 
     FAppInfo: iModelGoogleAppInfo;
 
+    FSessionStartDateTime : TDateTime;
+
     function GuidCreate: string;
     function GetSystemPlatform: string;
     function GetScreenResolution: string;
     procedure ValidaDados;
+    /// <summary> Checa se atingiu o "Tempo Limite da Sessão". Se sim, significa que a sssão foi encerrada de forma
+    /// forçada pelo Google Analytics. Então, eu tenho que reenviar uma requisição de nova sessão
+    /// </summary>
+    procedure CheckSessionTimeOut;
   public
-    constructor Create(AGooglePropertyID: String; AUserID: String = '');
+    constructor Create(AGooglePropertyID: String; AUserID: String = ''; ASessionTimeOutMinutes: Integer = 30);
     destructor Destroy; override;
-    class function New(AGooglePropertyID: String; AUserID: String = ''): iControllerGoogleAnalytics;
+    class function New(AGooglePropertyID: String; AUserID: String = ''; ASessionTimeOutMinutes: Integer = 30
+      ): iControllerGoogleAnalytics;
 
     function GooglePropertyID: String; overload;
     function GooglePropertyID(Value: String): iControllerGoogleAnalytics; overload;
@@ -37,6 +46,11 @@ type
     function ClienteID(Value: String): iControllerGoogleAnalytics; overload;
     function UserID: String; overload;
     function UserID(Value: String): iControllerGoogleAnalytics; overload;
+
+    /// <summary> Tempo Limite da Sessão (em minutos, tal como parametrizado no Google Analytics, padrão:
+    /// 30 minutos </summary>
+    function SessionTimeOutMinutes: Integer; overload;
+    function SessionTimeOutMinutes(Value : Integer):  iControllerGoogleAnalytics; overload;
 
     function SystemPlatform: String;
     function ScreenResolution: String;
@@ -72,6 +86,16 @@ begin
   Result  :=  FAppInfo;
 end;
 
+procedure TControllerGoogleAnalytics.CheckSessionTimeOut;
+begin
+  if MinutesBetween(Now, FSessionStartDateTime) >= FSessionTimeOutMinutes then
+  begin
+    Self.StartSession;
+    FSessionStartDateTime := Now;
+    Sleep(500); //Aguarda alguns instantes para garantir que o gogole recebeu e processou a requisição.
+  end;
+end;
+
 function TControllerGoogleAnalytics.ClienteID(
   Value: String): iControllerGoogleAnalytics;
 begin
@@ -85,12 +109,16 @@ begin
   Result  :=  FClienteID;
 end;
 
-constructor TControllerGoogleAnalytics.Create(AGooglePropertyID: String; AUserID: String = '');
+constructor TControllerGoogleAnalytics.Create(AGooglePropertyID: String; AUserID: String = '';
+  ASessionTimeOutMinutes: Integer = 30);
 begin
   FGooglePropertyID :=  AGooglePropertyID;
   FUserID :=  AUserID;
 
   FClienteID  :=  GuidCreate;
+
+  FSessionTimeOutMinutes := ASessionTimeOutMinutes;
+  FSessionStartDateTime := Now;
 
   FSystemPlatform  := GetSystemPlatform;
   FScreenResolution:=  GetScreenResolution;
@@ -126,6 +154,8 @@ begin
 
   ValidaDados;
 
+  CheckSessionTimeOut;
+
   TModelGoogleAnalyticsInvoker.New
     .Add(TModelGoogleAnalyticsFactory.New
       .Event(Self)
@@ -142,6 +172,8 @@ begin
   Result  :=  Self;
 
   ValidaDados;
+
+  CheckSessionTimeOut;
 
   TModelGoogleAnalyticsInvoker.New
     .Add(TModelGoogleAnalyticsFactory.New
@@ -199,14 +231,16 @@ begin
   Result  :=  FGooglePropertyID;
 end;
 
-class function TControllerGoogleAnalytics.New(AGooglePropertyID: String; AUserID: String = ''): iControllerGoogleAnalytics;
+class function TControllerGoogleAnalytics.New(AGooglePropertyID: String; AUserID: String = '';
+  ASessionTimeOutMinutes: Integer = 30): iControllerGoogleAnalytics;
 begin
   if not Assigned(FInstance) then
-    FInstance := Self.Create(AGooglePropertyID, AUserID)
+    FInstance := Self.Create(AGooglePropertyID, AUserID, ASessionTimeOutMinutes)
   else
     FInstance
       .GooglePropertyID(AGooglePropertyID)
-      .UserID(AUserID);
+      .UserID(AUserID)
+      .SessionTimeOutMinutes(ASessionTimeOutMinutes);
 
   Result := FInstance;
 end;
@@ -216,6 +250,8 @@ begin
   Result  :=  Self;
 
   ValidaDados;
+
+  CheckSessionTimeOut;
 
   TModelGoogleAnalyticsInvoker.New
     .Add(TModelGoogleAnalyticsFactory.New
@@ -238,12 +274,25 @@ begin
 
   ValidaDados;
 
+  CheckSessionTimeOut;
+
   TModelGoogleAnalyticsInvoker.New
     .Add(TModelGoogleAnalyticsFactory.New
       .ScreeView(Self)
         .ScreenName(AScreenName)
       .Send)
     .Execute;
+end;
+
+function TControllerGoogleAnalytics.SessionTimeOutMinutes(Value: Integer): iControllerGoogleAnalytics;
+begin
+  Result := Self;
+  FSessionTimeOutMinutes := Value;
+end;
+
+function TControllerGoogleAnalytics.SessionTimeOutMinutes: Integer;
+begin
+  Result := FSessionTimeOutMinutes;
 end;
 
 function TControllerGoogleAnalytics.StartSession: IControllerGoogleAnalytics;
