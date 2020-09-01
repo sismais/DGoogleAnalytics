@@ -16,9 +16,10 @@ type
     function UserID: String; overload;
     function UserID(Value: String): iControllerGoogleAnalytics; overload;
 
-    /// <summary> Tempo Limite da Sessão (em minutos, tal como parametrizado no Google Analytics, padrão: 30 minutos </summary>
+    /// <summary> Tempo Limite da Sessão (em minutos, tal como parametrizado no Google Analytics, padrão: 30 minutos.
+    /// </summary>
     function SessionTimeOutMinutes: Integer; overload;
-    function SessionTimeOutMinutes(Value : Integer):  iControllerGoogleAnalytics; overload;
+    function SessionTimeOutMinutes(Value: Integer): iControllerGoogleAnalytics; overload;
 
     function SystemPlatform: String;
     function ScreenResolution: String;
